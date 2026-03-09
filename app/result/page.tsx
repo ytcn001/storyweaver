@@ -3,18 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-function generateStory(memory: string, answers: string[]) {
-  return `这是一个关于${memory}的故事。
-
-${answers[0] || '那是一个特别的时刻'}，${memory}。${answers[1] || '周围的一切仿佛都静止了'}，只有这个记忆在心中深深烙印。${answers[2] || '从那以后，这个经历一直影响着我，让我明白了生活中最珍贵的东西是什么。'}
-
-时光荏苒，岁月如梭。每当我回想起这段往事，心中总是充满了感激。那些看似平凡的瞬间，却成为了我生命中最宝贵的财富。${memory}不仅仅是一段回忆，更是我成长道路上的一盏明灯，照亮我前行的方向。
-
-在这个快节奏的世界里，我们常常忘记了停下来，去感受那些微小却真实的幸福。而这个故事，就是我对那段美好时光的致敬。它提醒我，无论走到哪里，都不要忘记初心，不要忘记那些曾经感动过我们的人和事。
-
-也许有一天，我会把这个故事讲给更多的人听，让他们也感受到这份温暖和力量。因为我相信，每一个真实的故事，都有改变世界的可能。而这个故事，就从${memory}开始。`
-}
-
 export default function Result() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -24,6 +12,38 @@ export default function Result() {
   const [story, setStory] = useState('')
   const [isGenerating, setIsGenerating] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const generateStory = async (memory: string, answers: string[]) => {
+    setIsGenerating(true)
+    setError(null)
+    
+    try {
+      const response = await fetch('/api/generate-story', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          memory,
+          answers
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to generate story')
+      }
+
+      const data = await response.json()
+      setStory(data.story)
+      setIsGenerating(false)
+    } catch (err) {
+      console.error('Error generating story:', err)
+      setError(err instanceof Error ? err.message : '生成故事失败')
+      setIsGenerating(false)
+    }
+  }
 
   useEffect(() => {
     if (!dataParam) {
@@ -33,11 +53,7 @@ export default function Result() {
     try {
       const parsedData = JSON.parse(decodeURIComponent(dataParam))
       setData(parsedData)
-      setTimeout(() => {
-        const generatedStory = generateStory(parsedData.memory, parsedData.answers)
-        setStory(generatedStory)
-        setIsGenerating(false)
-      }, 2000)
+      generateStory(parsedData.memory, parsedData.answers)
     } catch (e) {
       router.push('/')
     }
@@ -67,6 +83,18 @@ export default function Result() {
         {isGenerating ? (
           <div className="bg-white/80 rounded-lg p-12 text-center">
             <p className="text-xl text-gray-600">正在生成你的故事...</p>
+          </div>
+        ) : error ? (
+          <div className="bg-white/80 rounded-lg p-12 text-center">
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4">
+              <p>{error}</p>
+            </div>
+            <button
+              onClick={() => data && generateStory(data.memory, data.answers)}
+              className="px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors font-serif"
+            >
+              重试
+            </button>
           </div>
         ) : (
           <>

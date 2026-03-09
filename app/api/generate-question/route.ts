@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+const mockQuestions = [
+  '能告诉我这个记忆发生在什么时候吗？',
+  '当时还有其他人在场吗？',
+  '这件事对你最大的影响是什么？'
+]
+
 export async function POST(request: NextRequest) {
   try {
     const { memory, previousQuestions, previousAnswers } = await request.json()
@@ -8,11 +14,10 @@ export async function POST(request: NextRequest) {
     const apiUrl = process.env.KIMI_API_URL || 'https://api.moonshot.cn/v1/chat/completions'
     const modelName = process.env.KIMI_MODEL || 'moonshot-v1-8k'
 
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'API key not configured' },
-        { status: 500 }
-      )
+    if (!apiKey || apiKey.includes('your') || apiKey.includes('你的')) {
+      console.log('使用模拟问题（未配置 API Key）')
+      const questionIndex = previousQuestions?.length || 0
+      return NextResponse.json({ question: mockQuestions[questionIndex] || mockQuestions[0] })
     }
 
     let systemPrompt = `你是一个善于倾听和提问的故事采访者。用户分享了一段记忆，请你提出一个深入的问题来帮助挖掘更多细节。
@@ -58,10 +63,9 @@ ${history}
     if (!response.ok) {
       const errorData = await response.json()
       console.error('Kimi API error:', errorData)
-      return NextResponse.json(
-        { error: 'Failed to generate question', details: errorData },
-        { status: response.status }
-      )
+      console.log('API 调用失败，使用模拟问题')
+      const questionIndex = previousQuestions?.length || 0
+      return NextResponse.json({ question: mockQuestions[questionIndex] || mockQuestions[0] })
     }
 
     const data = await response.json()
@@ -70,9 +74,9 @@ ${history}
     return NextResponse.json({ question })
   } catch (error) {
     console.error('Error in generate-question API:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    console.log('发生错误，使用模拟问题')
+    const { previousQuestions } = await request.json()
+    const questionIndex = previousQuestions?.length || 0
+    return NextResponse.json({ question: mockQuestions[questionIndex] || mockQuestions[0] })
   }
 }

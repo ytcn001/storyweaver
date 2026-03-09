@@ -6,6 +6,7 @@ export async function POST(request: NextRequest) {
 
     const apiKey = process.env.KIMI_API_KEY
     const apiUrl = process.env.KIMI_API_URL || 'https://api.moonshot.cn/v1/chat/completions'
+    const modelName = process.env.KIMI_MODEL || 'moonshot-v1-8k'
 
     if (!apiKey) {
       return NextResponse.json(
@@ -39,7 +40,7 @@ ${answersText}
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'moonshot-v1-8k',
+        model: modelName,
         messages: [
           {
             role: 'system',
